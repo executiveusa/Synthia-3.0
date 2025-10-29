@@ -1,4 +1,99 @@
 
+# Synthia 3.0 – Multi-Agent Design Orchestrator
+
+Synthia 3.0 transforms the original Lemon AI desktop stack into a mono-repo backend that orchestrates containerised design agents, captures BMAD voice interviews, and deploys deliverables to Google Cloud Run. The repository now bundles:
+
+- **Backend (`/backend`)** – TypeScript/Node service powering the agent orchestrator, BMAD voice intake flows, REST APIs, OAuth/IAP hooks, and OpenTelemetry instrumentation.
+- **Frontend (`/frontend`)** – Desktop/admin interface with reusable templates for orchestrated builds.
+- **Docs (`/docs`)** – Living documentation for PRDs, retrospectives, architecture decisions, and component inventories.
+
+## Quick Start
+
+> Prerequisites: Node.js 20+, pnpm, Docker, and (optional) Google Cloud CLI.
+
+```bash
+pnpm install
+pnpm --filter synthia-backend dev
+```
+
+The API server defaults to `http://localhost:8080` with health checks at `/healthz` and REST endpoints under `/api`.
+
+## Offline / Desktop Development
+
+The provided `docker-compose.yml` provisions:
+
+- `backend` – Runs the orchestrator API with hot reload.
+- `postgres` – Persists agent memories, voice sessions, and run metadata.
+- `ollama` – Serves local language models for air-gapped development.
+- `playwright-mcp` – Enables automated accessibility and regression audits.
+
+```bash
+docker compose up --build
+```
+
+Set the following environment variables (use `.env` or export them before starting services):
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Postgres connection string, default matches the compose file. |
+| `MODEL_PROVIDER` | `ollama`, `openrouter`, or `gemini`. Defaults to `openrouter`. |
+| `OLLAMA_MODEL` | Model alias loaded by the local Ollama instance. |
+| `OTLP_ENDPOINT` | Optional OTLP HTTP collector for tracing. |
+| `GOOGLE_PROJECT_ID` | Required for deployment scripts and Cloud Run builds. |
+
+## Google Cloud Deployment
+
+1. Authenticate with Google Cloud and configure the target project:
+   ```bash
+   gcloud auth login
+   gcloud config set project <your-project-id>
+   ```
+2. Build and push the universal Docker image using the GitHub Actions workflow or manually:
+   ```bash
+   docker build -f Dockerfile.backend -t gcr.io/<project>/synthia-backend:latest .
+   docker push gcr.io/<project>/synthia-backend:latest
+   ```
+3. Deploy to Cloud Run:
+   ```bash
+   gcloud run deploy synthia-backend \
+     --image gcr.io/<project>/synthia-backend:latest \
+     --platform managed \
+     --allow-unauthenticated=false \
+     --set-env-vars MODEL_PROVIDER=openrouter
+   ```
+
+To export an image for Contabo or Coolify, run:
+
+```bash
+GOOGLE_PROJECT_ID=<project> REGISTRY=<registry.example.com> ./backend/scripts/export-image.sh synthia-backend latest
+```
+
+## Continuous Integration
+
+- `.github/workflows/backend.yml` performs linting, unit tests (including Playwright MCP stubs), Docker image builds, and Cloud Run deployments on `main` merges.
+- Secrets should be stored as GitHub Action secrets: `GOOGLE_PROJECT_ID`, `GOOGLE_CLOUD_SERVICE_KEY`, `OTLP_ENDPOINT`, etc.
+
+## API Overview
+
+| Method & Path | Purpose |
+|---------------|---------|
+| `POST /api/interview/start` | Schedule a BMAD voice interview and create a session. |
+| `POST /api/voice/prd` | Convert captured Q&A into structured PRD artefacts. |
+| `POST /api/prds/{id}/approve` | Record human approval before orchestration. |
+| `POST /api/orchestrator/start` | Trigger Lemon AI agent orchestration and infinite improvement loops. |
+| `POST /api/deploy/{id}` | Deploy a completed run to Cloud Run and return trace metadata. |
+| `POST /api/ingest/stitch` | Convert Stitch/Figma exports into React-ready components. |
+| `GET /api/runs` | List historical orchestrator runs. |
+| `GET /api/runs/{id}` | Inspect run status, logs, and artefacts. |
+
+## Security
+
+- OAuth/IAP integration is configurable via `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `JWT_ISSUER`, and `JWT_AUDIENCE` variables.
+- Rate limiting, Helmet, and schema validation protect the API surface.
+- Keys for Anthropic, Figma, OpenRouter, Gemini, and Google Cloud must be supplied through environment variables or secret stores. Never commit secrets to the repo.
+
+---
+
 # Lemon AI​ is the first Full-stack, Open-source, Agentic AI framework, offering a ​fully local alternative​ to platforms like Manus & Genspark AI. It features an integrated Code Interpreter VM sandbox for safe execution.​​
 
 <div align=center>

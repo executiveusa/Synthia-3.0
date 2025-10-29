@@ -1,20 +1,53 @@
 
 services:
-  lemon:
-    image: hexdolemonai/lemon:latest
-    container_name: lemon-app
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     environment:
-      - DOCKER_HOST_ADDR=host.docker.internal
-      - ACTUAL_HOST_WORKSPACE_PATH=${WORKSPACE_BASE:-$PWD/workspace}
+      - NODE_ENV=development
+      - PORT=8080
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/synthia
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-ollama}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
     ports:
-      - "5005:5005"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - ollama
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.cache:/.cache
-      - ${WORKSPACE_BASE:-$PWD/workspace}:/app/workspace
-      - ${WORKSPACE_BASE:-$PWD/data}:/app/data
-    stdin_open: true
-    tty: true
-    command: make run
+      - ./:/app
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: synthia
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+  playwright-mcp:
+    image: mcr.microsoft.com/playwright:v1.52.0-jammy
+    command: ["sleep", "infinity"]
+    shm_size: "2gb"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.110.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./containers/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+
+volumes:
+  pgdata:
+  ollama:
