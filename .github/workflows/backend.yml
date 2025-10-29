@@ -1,0 +1,75 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'Dockerfile.backend'
+      - 'docker-compose.yml'
+      - '.github/workflows/backend.yml'
+      - 'docs/**'
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NODE_ENV: test
+      PNPM_HOME: ~/.local/share/pnpm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          echo "PNPM_HOME=$PNPM_HOME" >> $GITHUB_ENV
+          echo "$PNPM_HOME" >> $GITHUB_PATH
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint backend
+        run: pnpm --filter synthia-backend lint
+
+      - name: Run unit tests
+        run: pnpm --filter synthia-backend test
+
+      - name: Run Playwright MCP smoke test
+        run: pnpm --filter synthia-backend exec npx playwright --version
+
+      - name: Build Docker image
+        run: docker build -f Dockerfile.backend -t gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/synthia-backend:${{ github.sha }} .
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Install gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: latest
+
+      - name: Push Docker image
+        run: |
+          gcloud auth configure-docker gcr.io -q
+          docker push gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/synthia-backend:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy synthia-backend \
+            --image gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/synthia-backend:${{ github.sha }} \
+            --platform managed \
+            --region=${{ secrets.GOOGLE_REGION }} \
+            --allow-unauthenticated=false \
+            --set-env-vars MODEL_PROVIDER=openrouter

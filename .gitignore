@@ -14,6 +14,9 @@ Caches/*
 local_cache/*
 uploads/*
 scripts/*
+logs/
+artifacts/
+backend/dist/
 
 # agent workspace directory
 workspace/**
