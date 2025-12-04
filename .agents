@@ -1,0 +1,422 @@
+{
+  "project": "Synthia-3.0",
+  "description": "Multi-Agent Design Orchestrator with containerized agents and voice interview capabilities",
+  "version": "0.4.0",
+  "deployment_targets": ["railway", "coolify", "google-cloud-run"],
+  
+  "core": [
+    {
+      "name": "PORT",
+      "description": "HTTP server port",
+      "type": "number",
+      "default": "8080",
+      "required": false,
+      "category": "infrastructure"
+    },
+    {
+      "name": "NODE_ENV",
+      "description": "Node.js environment mode",
+      "type": "enum",
+      "allowed_values": ["development", "test", "production"],
+      "default": "production",
+      "required": false,
+      "category": "infrastructure"
+    },
+    {
+      "name": "DATABASE_URL",
+      "description": "PostgreSQL connection string",
+      "type": "url",
+      "format": "postgres://user:password@host:port/database",
+      "default": "postgres://postgres:postgres@postgres:5432/synthia",
+      "required": true,
+      "category": "database",
+      "security_level": "high"
+    },
+    {
+      "name": "STORAGE_PATH",
+      "description": "SQLite database path for local storage",
+      "type": "path",
+      "default": "data/database.sqlite",
+      "required": false,
+      "category": "storage"
+    },
+    {
+      "name": "WORKSPACE_DIR",
+      "description": "Working directory for agent file operations",
+      "type": "path",
+      "default": "workspace",
+      "required": false,
+      "category": "storage"
+    },
+    {
+      "name": "RUNTIME_TYPE",
+      "description": "Code execution runtime environment",
+      "type": "enum",
+      "allowed_values": ["local-docker", "e2b", "sandbox"],
+      "default": "local-docker",
+      "required": false,
+      "category": "infrastructure"
+    }
+  ],
+  
+  "ai_providers": [
+    {
+      "name": "MODEL_PROVIDER",
+      "description": "Primary AI model provider",
+      "type": "enum",
+      "allowed_values": ["ollama", "openrouter", "gemini"],
+      "default": "openrouter",
+      "required": true,
+      "category": "ai-integration",
+      "stub_value": "openrouter"
+    },
+    {
+      "name": "OPENROUTER_API_KEY",
+      "description": "OpenRouter API authentication key",
+      "type": "secret",
+      "format": "sk-or-v1-[64-char-hex]",
+      "default": "",
+      "required": false,
+      "category": "ai-integration",
+      "security_level": "critical",
+      "stub_value": "sk-or-v1-stub-key-for-testing-only",
+      "disable_integration": "Remove all OpenRouter API calls; use ollama fallback"
+    },
+    {
+      "name": "OPENROUTER_MODEL",
+      "description": "OpenRouter model identifier",
+      "type": "string",
+      "default": "openrouter/free",
+      "required": false,
+      "category": "ai-integration"
+    },
+    {
+      "name": "GEMINI_API_KEY",
+      "description": "Google Gemini API key",
+      "type": "secret",
+      "format": "AIza[...]",
+      "default": "",
+      "required": false,
+      "category": "ai-integration",
+      "security_level": "critical",
+      "stub_value": "AIzaStubKeyForTestingOnly",
+      "disable_integration": "Remove Gemini provider; use ollama fallback"
+    },
+    {
+      "name": "GEMINI_MODEL",
+      "description": "Gemini model version",
+      "type": "string",
+      "default": "gemini-2.0-flash",
+      "required": false,
+      "category": "ai-integration"
+    },
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "description": "Anthropic Claude API key",
+      "type": "secret",
+      "format": "sk-ant-[...]",
+      "default": "",
+      "required": false,
+      "category": "ai-integration",
+      "security_level": "critical",
+      "stub_value": "sk-ant-stub-key-for-testing",
+      "disable_integration": "Remove Claude integrations; use ollama fallback"
+    },
+    {
+      "name": "OLLAMA_MODEL",
+      "description": "Ollama local model name",
+      "type": "string",
+      "default": "llama3",
+      "required": false,
+      "category": "ai-integration"
+    },
+    {
+      "name": "OLLAMA_HOST",
+      "description": "Ollama service endpoint",
+      "type": "url",
+      "default": "http://localhost:11434",
+      "required": false,
+      "category": "ai-integration"
+    }
+  ],
+  
+  "observability": [
+    {
+      "name": "OTLP_ENDPOINT",
+      "description": "OpenTelemetry Protocol collector endpoint",
+      "type": "url",
+      "format": "http://host:port/v1/traces",
+      "default": "http://otel-collector:4318/v1/traces",
+      "required": false,
+      "category": "monitoring",
+      "stub_value": "",
+      "disable_integration": "Set to empty string to disable telemetry"
+    }
+  ],
+  
+  "cloud_platforms": [
+    {
+      "name": "GOOGLE_PROJECT_ID",
+      "description": "Google Cloud project identifier",
+      "type": "string",
+      "default": "",
+      "required": false,
+      "category": "cloud-integration",
+      "stub_value": "synthia-dev-stub",
+      "disable_integration": "Remove Google Cloud Run deployment features"
+    },
+    {
+      "name": "GOOGLE_CLOUD_SERVICE_KEY",
+      "description": "Google Cloud service account JSON key",
+      "type": "secret",
+      "format": "base64-encoded-json",
+      "default": "",
+      "required": false,
+      "category": "cloud-integration",
+      "security_level": "critical",
+      "stub_value": "",
+      "disable_integration": "Remove GCR authentication and deployment"
+    }
+  ],
+  
+  "authentication": [
+    {
+      "name": "JWT_AUDIENCE",
+      "description": "JWT token audience claim",
+      "type": "string",
+      "default": "",
+      "required": false,
+      "category": "security",
+      "stub_value": "synthia-api",
+      "disable_integration": "Disable JWT validation"
+    },
+    {
+      "name": "JWT_ISSUER",
+      "description": "JWT token issuer claim",
+      "type": "string",
+      "default": "",
+      "required": false,
+      "category": "security",
+      "stub_value": "synthia-auth",
+      "disable_integration": "Disable JWT validation"
+    },
+    {
+      "name": "OAUTH_CLIENT_ID",
+      "description": "OAuth 2.0 client identifier",
+      "type": "secret",
+      "default": "",
+      "required": false,
+      "category": "security",
+      "security_level": "high",
+      "stub_value": "",
+      "disable_integration": "Remove OAuth/IAP authentication middleware"
+    },
+    {
+      "name": "OAUTH_CLIENT_SECRET",
+      "description": "OAuth 2.0 client secret",
+      "type": "secret",
+      "default": "",
+      "required": false,
+      "category": "security",
+      "security_level": "critical",
+      "stub_value": "",
+      "disable_integration": "Remove OAuth/IAP authentication middleware"
+    }
+  ],
+  
+  "optional_integrations": [
+    {
+      "name": "ARYN_API_KEY",
+      "description": "Aryn API key for knowledge processing",
+      "type": "secret",
+      "default": "",
+      "required": false,
+      "category": "optional-integration",
+      "security_level": "high",
+      "stub_value": "",
+      "disable_integration": "Skip knowledge extraction features"
+    },
+    {
+      "name": "ENABLE_KNOWLEDGE",
+      "description": "Toggle knowledge base features",
+      "type": "enum",
+      "allowed_values": ["ON", "OFF"],
+      "default": "ON",
+      "required": false,
+      "category": "feature-flag"
+    },
+    {
+      "name": "SUB_SERVER_DOMAIN",
+      "description": "Subdomain for file serving",
+      "type": "url",
+      "default": "",
+      "required": false,
+      "category": "optional-integration",
+      "stub_value": "http://localhost:8080",
+      "disable_integration": "Use local file paths instead"
+    },
+    {
+      "name": "FIGMA_API_TOKEN",
+      "description": "Figma API access token",
+      "type": "secret",
+      "default": "",
+      "required": false,
+      "category": "optional-integration",
+      "security_level": "high",
+      "stub_value": "",
+      "disable_integration": "Skip Figma/Stitch import features"
+    },
+    {
+      "name": "DOCKER_HOST_ADDR",
+      "description": "Docker daemon address for container operations",
+      "type": "string",
+      "default": "host.docker.internal",
+      "required": false,
+      "category": "infrastructure"
+    },
+    {
+      "name": "ACTUAL_HOST_WORKSPACE_PATH",
+      "description": "Host machine workspace path for volume mounting",
+      "type": "path",
+      "default": "./workspace",
+      "required": false,
+      "category": "storage"
+    },
+    {
+      "name": "APPLE_ID",
+      "description": "Apple Developer ID for macOS builds",
+      "type": "secret",
+      "default": "",
+      "required": false,
+      "category": "build-tooling",
+      "security_level": "high",
+      "stub_value": "",
+      "disable_integration": "Skip macOS code signing"
+    },
+    {
+      "name": "APPLE_PASSWORD",
+      "description": "Apple app-specific password",
+      "type": "secret",
+      "default": "",
+      "required": false,
+      "category": "build-tooling",
+      "security_level": "critical",
+      "stub_value": "",
+      "disable_integration": "Skip macOS notarization"
+    },
+    {
+      "name": "APPLE_TEAM_ID",
+      "description": "Apple Developer Team ID",
+      "type": "string",
+      "default": "",
+      "required": false,
+      "category": "build-tooling",
+      "stub_value": "",
+      "disable_integration": "Skip macOS code signing"
+    },
+    {
+      "name": "MAX_REVISE_DEPTH",
+      "description": "Maximum code revision iteration depth",
+      "type": "number",
+      "default": "0",
+      "required": false,
+      "category": "feature-flag"
+    }
+  ],
+  
+  "railway_specific": [
+    {
+      "name": "RAILWAY_ENVIRONMENT",
+      "description": "Railway deployment environment",
+      "type": "string",
+      "default": "production",
+      "required": false,
+      "category": "railway"
+    },
+    {
+      "name": "RAILWAY_STATIC_URL",
+      "description": "Railway public static URL",
+      "type": "url",
+      "default": "",
+      "required": false,
+      "category": "railway"
+    }
+  ],
+  
+  "required_secrets": [
+    "DATABASE_URL"
+  ],
+  
+  "optional_secrets": [
+    "OPENROUTER_API_KEY",
+    "GEMINI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_CLOUD_SERVICE_KEY",
+    "OAUTH_CLIENT_ID",
+    "OAUTH_CLIENT_SECRET",
+    "ARYN_API_KEY",
+    "FIGMA_API_TOKEN",
+    "APPLE_ID",
+    "APPLE_PASSWORD"
+  ],
+  
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "PORT": { "type": "number" },
+      "NODE_ENV": { "type": "string", "enum": ["development", "test", "production"] },
+      "DATABASE_URL": { "type": "string", "format": "uri" },
+      "MODEL_PROVIDER": { "type": "string", "enum": ["ollama", "openrouter", "gemini"] },
+      "OPENROUTER_API_KEY": { "type": "string" },
+      "GEMINI_API_KEY": { "type": "string" },
+      "ANTHROPIC_API_KEY": { "type": "string" },
+      "GOOGLE_PROJECT_ID": { "type": "string" },
+      "JWT_AUDIENCE": { "type": "string" },
+      "JWT_ISSUER": { "type": "string" },
+      "OAUTH_CLIENT_ID": { "type": "string" },
+      "OAUTH_CLIENT_SECRET": { "type": "string" }
+    },
+    "required": ["DATABASE_URL"]
+  },
+  
+  "deployment_notes": {
+    "railway": {
+      "minimal_config": "DATABASE_URL, MODEL_PROVIDER=openrouter",
+      "recommended_config": "Add OTLP_ENDPOINT for monitoring",
+      "cost_protection": "Use smallest instance size, enforce resource limits"
+    },
+    "coolify": {
+      "network": "Requires Hostinger VPN tunnel for private network access",
+      "storage": "Mount persistent volumes for workspace and database",
+      "recommended": "Use dedicated PostgreSQL service"
+    },
+    "local_docker": {
+      "services": "postgres, ollama, playwright-mcp, otel-collector",
+      "volumes": "Mount workspace directory and SQLite database"
+    }
+  },
+  
+  "integration_stubs": {
+    "disable_openrouter": {
+      "action": "Set MODEL_PROVIDER=ollama",
+      "fallback": "Use local Ollama models"
+    },
+    "disable_gemini": {
+      "action": "Remove gemini from MODEL_PROVIDER options",
+      "fallback": "Use openrouter or ollama"
+    },
+    "disable_oauth": {
+      "action": "Comment out OAuth middleware in backend/src/index.ts",
+      "fallback": "Allow unauthenticated access (dev only)"
+    },
+    "disable_telemetry": {
+      "action": "Set OTLP_ENDPOINT to empty string",
+      "fallback": "No distributed tracing"
+    },
+    "disable_cloud_run": {
+      "action": "Remove GOOGLE_PROJECT_ID and related scripts",
+      "fallback": "Deploy to Railway or Coolify only"
+    }
+  }
+}

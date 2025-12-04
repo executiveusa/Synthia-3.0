@@ -1,0 +1,184 @@
+# Coolify-optimized Docker Compose Configuration
+# For deployment on Coolify with Hostinger VPN support
+
+version: '3.8'
+
+services:
+  synthia-backend:
+    image: synthia-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      # Core configuration
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-8080}
+      
+      # Database (from Coolify PostgreSQL service)
+      - DATABASE_URL=${DATABASE_URL}
+      
+      # AI Provider Configuration
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-openrouter}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-openrouter/free}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      
+      # Optional integrations
+      - OTLP_ENDPOINT=${OTLP_ENDPOINT}
+      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - JWT_ISSUER=${JWT_ISSUER}
+      - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+      - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+      
+      # Storage
+      - STORAGE_PATH=${STORAGE_PATH:-data/database.sqlite}
+      - WORKSPACE_DIR=${WORKSPACE_DIR:-workspace}
+      - RUNTIME_TYPE=${RUNTIME_TYPE:-local-docker}
+      - ENABLE_KNOWLEDGE=${ENABLE_KNOWLEDGE:-ON}
+    
+    ports:
+      - "${PORT:-8080}:8080"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    volumes:
+      - workspace-data:/app/workspace
+      - sqlite-data:/app/data
+    
+    networks:
+      - synthia-network
+    
+    # Resource limits for cost efficiency
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-synthia}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-synthia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    networks:
+      - synthia-network
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Optional: Ollama for local AI inference
+  # Uncomment if you need local models (requires more RAM)
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama-data:/root/.ollama
+  #   restart: unless-stopped
+  #   networks:
+  #     - synthia-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '4.0'
+  #         memory: 8G
+  #       reservations:
+  #         cpus: '2.0'
+  #         memory: 4G
+
+  # Optional: OpenTelemetry Collector for observability
+  # Uncomment if you need distributed tracing
+  # otel-collector:
+  #   image: otel/opentelemetry-collector:0.110.0
+  #   command: ["--config=/etc/otel-collector-config.yaml"]
+  #   volumes:
+  #     - ./containers/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+  #   ports:
+  #     - "4318:4318"  # OTLP HTTP
+  #     - "8888:8888"  # Prometheus metrics
+  #   restart: unless-stopped
+  #   networks:
+  #     - synthia-network
+
+volumes:
+  postgres-data:
+    driver: local
+  workspace-data:
+    driver: local
+  sqlite-data:
+    driver: local
+  # ollama-data:
+  #   driver: local
+
+networks:
+  synthia-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# Hostinger VPN Integration Notes:
+# 
+# To use with Hostinger VPN (WireGuard):
+# 1. Set up WireGuard on host: apt-get install wireguard-tools
+# 2. Configure tunnel: see COOLIFY_SUPPORT.md
+# 3. Update DATABASE_URL to use private IP: postgres://USERNAME:PASSWORD@10.0.0.2:5432/DBNAME
+# 4. Add network_mode: "host" to services if needed
+#
+# For private networking:
+# - All services communicate via synthia-network
+# - Expose only necessary ports to host
+# - Use VPN for external service access
+#
+# Cost Optimization:
+# - Resource limits prevent runaway usage
+# - Single replica by default
+# - Ollama commented out (use cloud AI on smaller VPS)
+# - OTEL collector optional (enable if needed)
+#
+# Monitoring:
+# - Health checks on all services
+# - Logs: docker compose logs -f
+# - Stats: docker stats
+# - Coolify dashboard provides additional metrics
