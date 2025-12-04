@@ -7,6 +7,36 @@ Synthia 3.0 transforms the original Lemon AI desktop stack into a mono-repo back
 - **Frontend (`/frontend`)** – Desktop/admin interface with reusable templates for orchestrated builds.
 - **Docs (`/docs`)** – Living documentation for PRDs, retrospectives, architecture decisions, and component inventories.
 
+## 🚀 Railway Zero-Secrets Deployment
+
+**NEW**: Deploy Synthia 3.0 to production in minutes with the Railway Zero-Secrets Bootstrapper!
+
+### One-Command Deployment
+
+```bash
+# Initialize zero-secrets system
+./scripts/setup-zero-secrets.sh
+
+# Deploy to Railway (free tier)
+./scripts/railway/deploy.sh
+```
+
+**Features:**
+- ✅ First deploy guaranteed to work
+- ✅ Zero secrets committed to git
+- ✅ Cost protection built-in
+- ✅ Auto-maintenance mode when limits reached
+- ✅ Easy migration to Coolify for cost optimization
+
+**Supports:**
+- **Railway**: Quick start with free tier
+- **Coolify**: Self-hosted with Hostinger VPN
+- **Google Cloud Run**: Enterprise scale
+- **Local Docker**: Development and testing
+
+📖 **See [RAILWAY_ZERO_SECRETS.md](./RAILWAY_ZERO_SECRETS.md) for architecture details**  
+📖 **See [DEPLOYMENT.md](./DEPLOYMENT.md) for full deployment guide**
+
 ## Quick Start
 
 > Prerequisites: Node.js 20+, pnpm, Docker, and (optional) Google Cloud CLI.
@@ -88,9 +118,29 @@ GOOGLE_PROJECT_ID=<project> REGISTRY=<registry.example.com> ./backend/scripts/ex
 
 ## Security
 
+### Zero-Secrets Architecture
+
+This repository implements a comprehensive zero-secrets deployment architecture:
+
+- **`.agents` file**: Machine-readable inventory of all required and optional secrets
+- **`master.secrets.json`**: Local secret storage (never committed to git)
+- **Environment Variables**: All secrets injected via platform-specific mechanisms
+- **No Hardcoded Secrets**: Code references only environment variables
+
+### Secret Management
+
 - OAuth/IAP integration is configurable via `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `JWT_ISSUER`, and `JWT_AUDIENCE` variables.
 - Rate limiting, Helmet, and schema validation protect the API surface.
-- Keys for Anthropic, Figma, OpenRouter, Gemini, and Google Cloud must be supplied through environment variables or secret stores. Never commit secrets to the repo.
+- Keys for Anthropic, Figma, OpenRouter, Gemini, and Google Cloud must be supplied through environment variables or secret stores.
+- **Never commit secrets to the repo** - use `master.secrets.json` locally (excluded in `.gitignore`)
+- Review `.agents` file for complete secret inventory and integration stubs
+
+### Cost Protection
+
+- Resource limits enforced in `railway.toml`
+- Usage monitoring via `./scripts/railway/check-usage.sh`
+- Automatic maintenance mode when free tier exceeded
+- Migration path to cost-effective platforms (Coolify)
 
 ---
 
