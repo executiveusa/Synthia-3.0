@@ -163,7 +163,7 @@ networks:
 # To use with Hostinger VPN (WireGuard):
 # 1. Set up WireGuard on host: apt-get install wireguard-tools
 # 2. Configure tunnel: see COOLIFY_SUPPORT.md
-# 3. Update DATABASE_URL to use private IP: postgres://user:pass@10.0.0.2:5432/db
+# 3. Update DATABASE_URL to use private IP: postgres://USERNAME:PASSWORD@10.0.0.2:5432/DBNAME
 # 4. Add network_mode: "host" to services if needed
 #
 # For private networking:

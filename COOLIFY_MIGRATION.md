@@ -36,14 +36,16 @@ This checklist guides you through migrating Synthia 3.0 from Railway to Coolify 
 
 - [ ] **Export Railway Database**
   ```bash
-  # Get Railway database URL
-  railway variables get DATABASE_URL
+  # Get Railway database URL (secure method)
+  railway variables get DATABASE_URL > /tmp/db_url.txt
   
-  # Export database dump
-  pg_dump $RAILWAY_DATABASE_URL > synthia_backup.sql
-  
-  # Or use Railway CLI
+  # Export database dump using Railway CLI (recommended - more secure)
   railway run pg_dump > synthia_backup.sql
+  
+  # Or use pg_dump directly if needed
+  # Read DATABASE_URL from secure file
+  pg_dump $(cat /tmp/db_url.txt) > synthia_backup.sql
+  rm /tmp/db_url.txt  # Clean up
   ```
 
 - [ ] **Set Up PostgreSQL on Coolify**
