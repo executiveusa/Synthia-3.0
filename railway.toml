@@ -1,0 +1,88 @@
+# Railway.app Configuration for Synthia 3.0
+# Zero-Secrets Bootstrapper Configuration with Cost Protection Guardrails
+
+[build]
+builder = "nixpacks"
+buildCommand = "cd backend && npm install && npm run build"
+
+[deploy]
+startCommand = "cd backend && npm start"
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
+
+# Cost Protection: Enforce minimal resource allocation
+healthcheckPath = "/healthz"
+healthcheckTimeout = 30
+numReplicas = 1
+
+# Railway automatically detects PORT from environment
+# But we explicitly document expected value
+[deploy.env]
+NODE_ENV = "production"
+PORT = "8080"
+MODEL_PROVIDER = "openrouter"
+OPENROUTER_MODEL = "openrouter/free"
+RUNTIME_TYPE = "local-docker"
+ENABLE_KNOWLEDGE = "ON"
+
+# Cost Protection: Minimal resource limits
+# Note: Railway's free tier provides limited resources
+# These settings ensure we stay within free tier bounds
+[deploy.resources]
+# Comment these out on Railway - they use Railway's defaults
+# cpu = "0.5"  # 500m CPU (half a core)
+# memory = "512Mi"  # 512MB RAM
+
+# Monitoring hooks for usage tracking
+# These environment variables can be read by monitoring scripts
+[deploy.env.monitoring]
+RAILWAY_COST_ALERT_ENABLED = "true"
+RAILWAY_FREE_TIER_LIMIT_MB = "512"
+RAILWAY_MAX_MONTHLY_COST = "0"
+
+# Database connection from Railway PostgreSQL plugin
+# Will be automatically injected as DATABASE_URL
+
+# Health check configuration
+[deploy.healthcheck]
+path = "/healthz"
+interval = 30
+timeout = 10
+retries = 3
+
+# Zero-secrets mode: All optional integrations disabled
+# To enable integrations, add secrets via Railway dashboard:
+# - OPENROUTER_API_KEY (for enhanced AI)
+# - GEMINI_API_KEY (for Gemini models)
+# - OTLP_ENDPOINT (for observability)
+# - OAUTH_CLIENT_ID/SECRET (for authentication)
+
+# Automatic maintenance mode trigger
+# If deployment fails or exceeds thresholds, scripts will:
+# 1. Deploy maintenance.html to Railway
+# 2. Shut down main service
+# 3. Generate migration checklist
+
+# Storage configuration
+# Railway provides ephemeral storage - use external services for persistence
+# - Database: Use Railway PostgreSQL plugin
+# - Files: Use S3, GCS, or Railway volumes
+
+# Networking
+# Railway automatically provides:
+# - RAILWAY_STATIC_URL: Public URL
+# - RAILWAY_PRIVATE_DOMAIN: Internal service mesh URL
+# - RAILWAY_ENVIRONMENT: Deployment environment name
+
+# Regions: Railway automatically selects optimal region
+# For Coolify migration, see COOLIFY_MIGRATION.md
+
+# Build optimization
+[build.nixpacksConfig]
+providers = ["node"]
+
+# Static file serving (for maintenance mode)
+[deploy.static]
+# When maintenance mode is active, deploy static HTML instead
+enabled = false
+directory = "maintenance"
